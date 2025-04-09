@@ -4,7 +4,7 @@ output "frontend_alb_sg_id" {
 
 output "frontend_listener_id" {
   description = "Id of Listener"
-  value       = data.aws_lb_listener.frontend.id
+  value       = aws_lb_listener.frontend.id
 }
 
 output "frontend_alb_dns" {

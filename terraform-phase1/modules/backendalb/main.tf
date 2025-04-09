@@ -8,7 +8,7 @@ resource "aws_lb" "backend_alb" {
 
 resource "aws_lb_target_group" "backend_tg" {
   name        = "backend-tg"
-  port        = 8080
+  port        = 5000
   protocol    = "HTTP"
   vpc_id      = var.vpc_id
   target_type = "ip"
@@ -18,7 +18,7 @@ resource "aws_lb_target_group" "backend_tg" {
     healthy_threshold   = 2
     interval            = 30
     matcher             = "200"
-    path                = "/api/health"
+    path                = "/api/products"
     port                = "traffic-port"
     protocol            = "HTTP"
     timeout             = 5
