@@ -13,6 +13,21 @@ terraform init \
     -backend-config="key=production/phase2/terraform.tfstate" \
     -backend-config="region=ca-central-1"
 
+# Fix the variable type mismatch in terraform.tfvars
+echo "Fixing variable type mismatch in terraform.tfvars..."
+if [ -f terraform.tfvars ]; then
+  # Backup the original file
+  cp terraform.tfvars terraform.tfvars.bak
+  
+  # Replace bastion_allowed_ssh_cidr line with string value
+  sed -i 's/bastion_allowed_ssh_cidr = \[\(.*\)\]/bastion_allowed_ssh_cidr = \1/' terraform.tfvars || true
+  
+  # On macOS, sed works differently, so try this if the above fails
+  sed -i '' 's/bastion_allowed_ssh_cidr = \[\(.*\)\]/bastion_allowed_ssh_cidr = \1/' terraform.tfvars 2>/dev/null || true
+  
+  echo "Fixed terraform.tfvars file."
+fi
+
 # First, let's try to remove the ECS services which depend on the target groups
 echo "Creating a temporary plan to destroy ECS services first..."
 cat > destroy_ecs.tf <<EOF
@@ -63,5 +78,10 @@ terraform destroy -auto-approve || {
   echo "Trying full destroy again..."
   terraform destroy -auto-approve
 }
+
+# Restore the original terraform.tfvars if we backed it up
+if [ -f terraform.tfvars.bak ]; then
+  mv terraform.tfvars.bak terraform.tfvars
+fi
 
 echo "Phase 2 resources destruction completed successfully!" 
