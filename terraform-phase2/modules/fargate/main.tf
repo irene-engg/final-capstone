@@ -22,7 +22,7 @@ resource "aws_ecs_task_definition" "frontend_task" {
       environment = [
         {
           name  = "BACKEND_URL"
-          value = "http://${var.backend_alb_dns}:5000"
+          value = "http://${var.backend_alb_dns}:5001"
         }
       ]
       portMappings = [
