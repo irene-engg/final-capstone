@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+    image: blynk-backend:latest
+    container_name: blynk-backend
+    ports:
+      - "${BACKEND_PORT:-5000}:${BACKEND_PORT:-5000}"
+    environment:
+      - FRONTEND_ALB_DNS=${FRONTEND_ALB_DNS}
+      - BACKEND_PORT=${BACKEND_PORT}
+      - MONGODB_URI=${MONGODB_URI}
+      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
+      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
+      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
+      - UPSTASH_REDIS_URL=${UPSTASH_REDIS_URL}
+      - JWT_SECRET=${JWT_SECRET}
+    env_file:
+      - .env
+
+  frontend:
+    build:
+      context: ./frontend
+    image: blynk-frontend:latest
+    container_name: blynk-frontend
+    ports:
+      - "80:80"
+    environment:
+      - VITE_BACKEND_URL=${BACKEND_ALB_DNS}
+    env_file:
+      - .env
+    depends_on:
+      - backend
+
+volumes:
+  frontend_node_modules:
