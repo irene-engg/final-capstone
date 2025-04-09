@@ -1,5 +1,5 @@
 output "frontend_alb_sg_id" {
-  value = aws_security_group.frontend_alb_sg.id
+  value = data.aws_security_group.frontend_alb_sg.id
 }
 
 output "frontend_listener_id" {
