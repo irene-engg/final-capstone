@@ -7,7 +7,8 @@ variable "aws_region" {
 variable "vpc_cidr_block" {
   description = "CIDR block for the VPC"
   type        = string
-  }
+  default     = "10.0.0.0/16"  # Adding default value
+}
 
 variable "availability_zones" {
   description = "List of availability zones"
@@ -18,17 +19,20 @@ variable "availability_zones" {
 variable "public_subnet_cidrs" {
   description = "List of CIDR blocks for public subnets"
   type        = list(string)
-  }
+  default     = ["10.0.1.0/24", "10.0.2.0/24"]  # Adding default values
+}
 
 variable "frontend_subnet_cidrs" {
   description = "List of CIDR blocks for frontend subnets"
   type        = list(string)
-  }
+  default     = ["10.0.3.0/24", "10.0.4.0/24"]  # Adding default values
+}
 
 variable "backend_subnet_cidrs" {
   description = "List of CIDR blocks for backend subnets"
   type        = list(string)
-  }
+  default     = ["10.0.5.0/24", "10.0.6.0/24"]  # Adding default values
+}
 
 #updated by rumana
 variable "api_name" {
@@ -85,21 +89,25 @@ variable "bastion_allowed_ssh_cidr" {
 variable "phase1_vpc_id" {
   description = "ID of the VPC created in Phase 1"
   type        = string
+  default     = null  # Will be overridden by terraform.tfvars or environment variable
 }
 
 variable "phase1_frontend_subnet_ids" {
   description = "List of frontend subnet IDs from Phase 1"
   type        = list(string)
+  default     = []  # Will be overridden by terraform.tfvars or environment variable
 }
 
 variable "phase1_backend_subnet_ids" {
   description = "List of backend subnet IDs from Phase 1"
   type        = list(string)
+  default     = []  # Will be overridden by terraform.tfvars or environment variable
 }
 
 variable "phase1_ecs_cluster_name" {
   description = "Name of the ECS cluster created in Phase 1"
   type        = string
+  default     = ""  # Will be overridden by terraform.tfvars or environment variable
 }
 
 # Application Configuration
