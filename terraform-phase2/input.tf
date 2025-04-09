@@ -38,6 +38,7 @@ variable "api_name" {
 variable "alb_dns_name" {
   description = "The DNS name of the Application Load Balancer"
   type        = string
+  default     = ""  # Making it optional with empty default
 }
 
 variable "stage_name" {
