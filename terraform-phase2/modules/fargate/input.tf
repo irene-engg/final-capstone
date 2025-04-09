@@ -68,3 +68,8 @@ variable "backend_env_vars" {
     { name = "NODE_ENV", value = "development" }
   ]
 }
+
+variable "ecs_cluster_name" {
+  description = "Name of the ECS cluster"
+  type        = string
+}
