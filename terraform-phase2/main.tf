@@ -24,7 +24,7 @@ data "terraform_remote_state" "phase1" {
   backend = "s3"
   config = {
     bucket = "capstonebucketcloud2025"
-    key    = "phase1/terraform.tfstate"
+    key    = "production/terraform.tfstate"
     region = "ca-central-1"
   }
 }
