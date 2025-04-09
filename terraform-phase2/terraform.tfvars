@@ -21,3 +21,10 @@ api_name = "blynk-api"
 stage_name = "dev"
 waf_name = "blynk-waf"
 
+# These values should be provided by Phase 1 outputs
+# For testing, you can use placeholder values
+phase1_vpc_id = "vpc-060530ae6b9fd7496"
+phase1_frontend_subnet_ids = ["subnet-0fd63d11c0d56918f", "subnet-0aac2c1b5ae1486dc"]
+phase1_backend_subnet_ids = ["subnet-05b67e105643c1214", "subnet-0973247bf9f5c2f80"]
+phase1_ecs_cluster_name = "main-cluster"
+

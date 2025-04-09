@@ -11,7 +11,8 @@ variable "vpc_cidr_block" {
 variable "availability_zones" {
   description = "List of availability zones"
   type        = list(string)
-  }
+  default     = ["ca-central-1a", "ca-central-1b"]  # Default AZs for ca-central-1
+}
 
 variable "public_subnet_cidrs" {
   description = "List of CIDR blocks for public subnets"

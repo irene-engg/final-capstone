@@ -1,6 +1,7 @@
-resource "aws_ecs_cluster" "cloud_cluster" {
-  name = "cloud-cluster"
-}
+# Remove the ECS cluster creation since we're using an existing one
+# resource "aws_ecs_cluster" "cloud_cluster" {
+#   name = "cloud-cluster"
+# }
 
 resource "aws_ecs_task_definition" "frontend_task" {
   family                   = "frontend-task"
@@ -59,7 +60,7 @@ resource "aws_ecs_task_definition" "backend_task" {
 
 resource "aws_ecs_service" "frontend_service" {
   name            = "frontend-service"
-  cluster         = aws_ecs_cluster.cloud_cluster.id
+  cluster         = var.ecs_cluster_name
   task_definition = aws_ecs_task_definition.frontend_task.arn
   launch_type     = "FARGATE"
   desired_count   = 2
@@ -71,7 +72,7 @@ resource "aws_ecs_service" "frontend_service" {
   }
 
   network_configuration {
-    subnets         = [var.frontend_subnet1]
+    subnets         = [var.frontend_subnet1, var.frontend_subnet2]  # Use both subnets
     security_groups = [aws_security_group.frontend_sg.id]
     assign_public_ip = false
   }
@@ -80,7 +81,7 @@ resource "aws_ecs_service" "frontend_service" {
 
 resource "aws_ecs_service" "backend_service" {
   name            = "backend-service"
-  cluster         = aws_ecs_cluster.cloud_cluster.id
+  cluster         = var.ecs_cluster_name
   task_definition = aws_ecs_task_definition.backend_task.arn
   launch_type     = "FARGATE"
   desired_count   = 2
@@ -96,7 +97,7 @@ resource "aws_ecs_service" "backend_service" {
   
 
   network_configuration {
-    subnets         = [var.backend_subnet1]  # Ensure this is a list
+    subnets         = [var.backend_subnet1, var.backend_subnet2]  # Use both subnets
     security_groups = [aws_security_group.backend_sg.id]
     assign_public_ip = false
   }
