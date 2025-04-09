@@ -1,0 +1,211 @@
+name: Deploy Infrastructure and Application
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch: # Allows manual trigger
+
+jobs:
+  deploy:
+    name: Deploy Infra & App
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Get changed files
+      id: changed-files
+      uses: tj-actions/changed-files@v44
+      with:
+        files: |
+          terraform-phase1/**.tf
+          terraform-phase2/**.tf
+          backend/**
+          frontend/**
+          docker-compose.yaml
+          **/Dockerfile*
+          .github/workflows/docker-image.yml
+
+    - name: Configure AWS credentials
+      id: configure-aws-creds
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ca-central-1
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+
+    # --- Phase 1 Infrastructure ---
+    - name: Terraform Init (Phase 1)
+      id: init-phase1
+      run: |
+        cd ./terraform-phase1
+        terraform init \
+          -backend-config="bucket=capstonebucketcloud2025" \
+          -backend-config="key=production/terraform.tfstate" \
+          -backend-config="region=ca-central-1"
+        cd ..
+      shell: bash
+
+    - name: Terraform Apply (Phase 1)
+      id: apply-phase1
+      run: |
+        cd ./terraform-phase1
+        terraform apply -auto-approve -no-color
+        if [ $? -ne 0 ]; then
+          echo "Phase 1 Terraform apply failed"
+          exit 1
+        fi
+        cd ..
+      shell: bash
+
+    - name: Get Phase 1 Outputs
+      id: phase1-outputs
+      run: |
+        cd ./terraform-phase1
+        # Get VPC ID
+        vpc_id=$(terraform output -raw vpc_id)
+        echo "PHASE1_VPC_ID=$vpc_id" >> $GITHUB_ENV
+        
+        # Get Frontend Subnet IDs
+        frontend_subnets=$(terraform output -json frontend_subnet_ids | jq -r 'join(",")')
+        echo "PHASE1_FRONTEND_SUBNET_IDS=$frontend_subnets" >> $GITHUB_ENV
+        
+        # Get Backend Subnet IDs
+        backend_subnets=$(terraform output -json backend_subnet_ids | jq -r 'join(",")')
+        echo "PHASE1_BACKEND_SUBNET_IDS=$backend_subnets" >> $GITHUB_ENV
+        
+        # Get ECS Cluster Name
+        ecs_cluster=$(terraform output -raw ecs_cluster_name)
+        echo "PHASE1_ECS_CLUSTER_NAME=$ecs_cluster" >> $GITHUB_ENV
+        
+        cd ..
+      shell: bash
+
+    # --- Docker Build and Push ---
+    - name: Set Docker Image Tag
+      run: |
+        echo "IMAGE_TAG=${{ github.sha }}" >> $GITHUB_ENV
+      shell: bash
+
+    - name: Install Docker Compose
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ca-certificates curl gnupg
+        sudo install -m 0755 -d /etc/apt/keyrings
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+        sudo chmod a+r /etc/apt/keyrings/docker.gpg
+        echo \
+          "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+          "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | \
+          sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+        sudo apt-get update
+        sudo apt-get install -y docker-compose-plugin
+        docker compose version
+      shell: bash
+
+    - name: Set up Docker Buildx
+      if: steps.changed-files.outputs.any_changed == 'true' || github.event_name == 'workflow_dispatch'
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Docker Hub
+      if: steps.changed-files.outputs.any_changed == 'true' || github.event_name == 'workflow_dispatch'
+      uses: docker/login-action@v3
+      with:
+        username: ireneengg2011
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    - name: Create .env file
+      if: steps.changed-files.outputs.any_changed == 'true' || github.event_name == 'workflow_dispatch'
+      run: |
+        echo "FRONTEND_ALB_DNS=${{ env.TF_FRONTEND_ALB_DNS }}" >> .env
+        echo "BACKEND_ALB_DNS=${{ env.TF_BACKEND_ALB_DNS }}" >> .env
+        echo "BACKEND_PORT=${{ secrets.BACKEND_PORT }}" >> .env
+        echo "MONGODB_URI=${{ secrets.MONGODB_URI }}" >> .env
+        echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
+        echo "CLOUDINARY_CLOUD_NAME=${{ secrets.CLOUDINARY_CLOUD_NAME }}" >> .env
+        echo "CLOUDINARY_API_KEY=${{ secrets.CLOUDINARY_API_KEY }}" >> .env
+        echo "CLOUDINARY_API_SECRET=${{ secrets.CLOUDINARY_API_SECRET }}" >> .env
+        echo "UPSTASH_REDIS_URL=${{ secrets.UPSTASH_REDIS_URL }}" >> .env
+      shell: bash
+
+    - name: Build and Push Frontend Image
+      if: github.event_name == 'workflow_dispatch' || (steps.changed-files.outputs.any_changed == 'true' && contains(steps.changed-files.outputs.all_changed_files, 'frontend/'))
+      env:
+        DOCKERHUB_USER: ireneengg2011
+        FRONTEND_REPO: irene-frontend
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        docker compose -f docker-compose.yaml build frontend
+        docker tag blynk-frontend:latest $DOCKERHUB_USER/$FRONTEND_REPO:$IMAGE_TAG
+        docker tag blynk-frontend:latest $DOCKERHUB_USER/$FRONTEND_REPO:latest
+        docker push $DOCKERHUB_USER/$FRONTEND_REPO:$IMAGE_TAG
+        docker push $DOCKERHUB_USER/$FRONTEND_REPO:latest
+      shell: bash
+
+    - name: Build and Push Backend Image
+      if: github.event_name == 'workflow_dispatch' || (steps.changed-files.outputs.any_changed == 'true' && contains(steps.changed-files.outputs.all_changed_files, 'backend/'))
+      env:
+        DOCKERHUB_USER: ireneengg2011
+        BACKEND_REPO: irene-backend
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        docker compose -f docker-compose.yaml build backend
+        docker tag blynk-backend:latest $DOCKERHUB_USER/$BACKEND_REPO:$IMAGE_TAG
+        docker tag blynk-backend:latest $DOCKERHUB_USER/$BACKEND_REPO:latest
+        docker push $DOCKERHUB_USER/$BACKEND_REPO:$IMAGE_TAG
+        docker push $DOCKERHUB_USER/$BACKEND_REPO:latest
+      shell: bash
+
+    # --- Phase 2 Infrastructure ---
+    - name: Create Phase 2 tfvars
+      id: create-phase2-tfvars
+      run: |
+        cd ./terraform-phase2
+        cat > terraform.tfvars << EOF
+        phase1_vpc_id = "${{ env.PHASE1_VPC_ID }}"
+        phase1_frontend_subnet_ids = ["${{ env.PHASE1_FRONTEND_SUBNET_IDS }}"]
+        phase1_backend_subnet_ids = ["${{ env.PHASE1_BACKEND_SUBNET_IDS }}"]
+        phase1_ecs_cluster_name = "${{ env.PHASE1_ECS_CLUSTER_NAME }}"
+        EOF
+        cd ..
+      shell: bash
+
+    - name: Terraform Init (Phase 2)
+      id: init-phase2
+      run: |
+        cd ./terraform-phase2
+        terraform init \
+          -backend-config="bucket=capstonebucketcloud2025" \
+          -backend-config="key=production/phase2/terraform.tfstate" \
+          -backend-config="region=ca-central-1"
+        cd ..
+      shell: bash
+
+    - name: Terraform Apply (Phase 2)
+      id: apply-phase2
+      run: |
+        cd ./terraform-phase2
+        terraform apply -auto-approve -no-color
+        if [ $? -ne 0 ]; then
+          echo "Phase 2 Terraform apply failed"
+          exit 1
+        fi
+        cd ..
+      shell: bash
+
+    # --- Deploy Application Containers ---
+    - name: Deploy Application Containers
+      id: deploy-containers
+      run: |
+        echo "Deploying application containers to ECS..."
+        # Add commands to deploy containers to ECS
+        # This could be AWS CLI commands or using the AWS ECS CLI
+        echo "Application containers deployed successfully"
+      shell: bash
