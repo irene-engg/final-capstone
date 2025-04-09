@@ -19,6 +19,12 @@ resource "aws_ecs_task_definition" "frontend_task" {
       cpu       = 256
       memory    = 512
       essential = true
+      environment = [
+        {
+          name  = "BACKEND_URL"
+          value = "http://${var.backend_alb_dns}:5000"
+        }
+      ]
       portMappings = [
         {
         containerPort = 80  # Expose port 80 for ALB to route traffic
@@ -26,10 +32,26 @@ resource "aws_ecs_task_definition" "frontend_task" {
         protocol      = "tcp"
       }
       ]
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = aws_cloudwatch_log_group.frontend_log_group.name
+          "awslogs-region"        = "ca-central-1"
+          "awslogs-stream-prefix" = "frontend"
+        }
+      }
     }
   ])
 }
 
+resource "aws_cloudwatch_log_group" "frontend_log_group" {
+  name              = "/ecs/frontend-task"
+  retention_in_days = 14
+  tags = {
+    Application = "frontend"
+    Environment = "production"
+  }
+}
 
 resource "aws_ecs_task_definition" "backend_task" {
   family                   = "backend-task"
@@ -54,8 +76,25 @@ resource "aws_ecs_task_definition" "backend_task" {
           protocol      = "tcp"
         }
       ]
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = aws_cloudwatch_log_group.backend_log_group.name
+          "awslogs-region"        = "ca-central-1"
+          "awslogs-stream-prefix" = "backend"
+        }
+      }
     }
   ])
+}
+
+resource "aws_cloudwatch_log_group" "backend_log_group" {
+  name              = "/ecs/backend-task"
+  retention_in_days = 14
+  tags = {
+    Application = "backend"
+    Environment = "production"
+  }
 }
 
 resource "aws_ecs_service" "frontend_service" {

@@ -74,3 +74,19 @@ output "backend_ecs_task_definition_arn" {
   description = "ARN of the backend ECS task definition"
   value       = module.fargate.backend_task_definition_arn
 }
+
+# CloudWatch Outputs
+output "frontend_log_group_name" {
+  description = "Name of the frontend CloudWatch log group"
+  value       = module.fargate.frontend_log_group_name
+}
+
+output "backend_log_group_name" {
+  description = "Name of the backend CloudWatch log group"
+  value       = module.fargate.backend_log_group_name
+}
+
+output "cloudwatch_dashboard_name" {
+  description = "Name of the CloudWatch dashboard"
+  value       = module.fargate.cloudwatch_dashboard_name
+}

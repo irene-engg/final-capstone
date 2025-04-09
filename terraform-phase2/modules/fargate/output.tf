@@ -32,3 +32,18 @@ output "backend_task_definition_arn" {
   description = "ARN of the backend ECS task definition"
   value       = aws_ecs_task_definition.backend_task.arn
 }
+
+output "frontend_log_group_name" {
+  description = "Name of the frontend CloudWatch log group"
+  value       = aws_cloudwatch_log_group.frontend_log_group.name
+}
+
+output "backend_log_group_name" {
+  description = "Name of the backend CloudWatch log group"
+  value       = aws_cloudwatch_log_group.backend_log_group.name
+}
+
+output "cloudwatch_dashboard_name" {
+  description = "Name of the CloudWatch dashboard"
+  value       = aws_cloudwatch_dashboard.ecs_dashboard.dashboard_name
+}

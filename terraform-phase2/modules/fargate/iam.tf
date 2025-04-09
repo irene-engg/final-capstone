@@ -51,8 +51,11 @@ resource "aws_iam_policy" "ecs_task_policy" {
           "s3:ListBucket",
           "dynamodb:Query",
           "dynamodb:Scan",
+          "logs:CreateLogGroup",
           "logs:CreateLogStream",
-          "logs:PutLogEvents"
+          "logs:PutLogEvents",
+          "logs:DescribeLogStreams",
+          "logs:DescribeLogGroups"
         ]
         Resource = "*"
       }
@@ -91,4 +94,43 @@ resource "aws_iam_policy" "s3_read_policy" {
 resource "aws_iam_role_policy_attachment" "ecs_s3_attachment" {
   role       = aws_iam_role.ecs_execution_role.name
   policy_arn = aws_iam_policy.s3_read_policy.arn
+}
+
+# Create CloudWatch logs policy for detailed monitoring
+resource "aws_iam_policy" "cloudwatch_logs_policy" {
+  name        = "ecs-cloudwatch-logs-policy"
+  description = "Allow ECS tasks to write to CloudWatch Logs"
+  
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+          "logs:DescribeLogStreams",
+          "logs:DescribeLogGroups",
+          "cloudwatch:PutMetricData",
+          "cloudwatch:GetMetricStatistics",
+          "cloudwatch:ListMetrics",
+          "ec2:DescribeTags"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+# Attach CloudWatch logs policy to execution role
+resource "aws_iam_role_policy_attachment" "ecs_cloudwatch_attachment" {
+  role       = aws_iam_role.ecs_execution_role.name
+  policy_arn = aws_iam_policy.cloudwatch_logs_policy.arn
+}
+
+# Attach CloudWatch logs policy to task role
+resource "aws_iam_role_policy_attachment" "task_cloudwatch_attachment" {
+  role       = aws_iam_role.ecs_task_role.name
+  policy_arn = aws_iam_policy.cloudwatch_logs_policy.arn
 }

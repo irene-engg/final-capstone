@@ -89,6 +89,7 @@ module "fargate" {
   backend_alb_sg_id           = module.backendalb.backend_alb_sg_id
   backend_listener_id         = module.backendalb.backend_listener_id
   ecs_cluster_name            = data.aws_ecs_cluster.phase1_cluster.cluster_name
+  backend_alb_dns             = module.backendalb.backend_alb_dns
 }
 
 /*

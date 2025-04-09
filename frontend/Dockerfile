@@ -22,11 +22,20 @@ FROM nginx:alpine
 # Step 8: Copy the build output from the previous step to the nginx container
 COPY --from=build /app/dist /usr/share/nginx/html
 
-# ADD THIS LINE TO COPY YOUR CUSTOM NGINX CONFIG
-COPY nginx/default.conf /etc/nginx/conf.d/default.conf
+# Copy nginx template (not directly to the conf.d directory)
+COPY nginx/default.conf /etc/nginx/templates/default.conf.template
+
+# Set environment variable with a default value
+ENV BACKEND_URL="http://localhost:5000"
 
 # Step 9: Expose port 80 for the web server
 EXPOSE 80
 
-# Step 10: Run nginx in the foreground
-CMD ["nginx", "-g", "daemon off;"]
+# Step 10: Create an entrypoint script to substitute environment variables
+RUN echo '#!/bin/sh \n\
+envsubst < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf \n\
+nginx -g "daemon off;"' > /docker-entrypoint.sh && \
+chmod +x /docker-entrypoint.sh
+
+# Use the entrypoint script
+ENTRYPOINT ["/docker-entrypoint.sh"]
